@@ -7,26 +7,28 @@ use primitive_types::{H256, U256};
 use scale_info::TypeInfo;
 
 pub mod payloads;
-pub use payloads::{ApproveForAllInput, ApproveInput, InitConfig, TransferInput};
+pub use payloads::{ToMarket, ApproveForAllInput, ApproveInput, InitConfig, TransferInput, MintInput};
 
 pub mod state;
 pub use state::{State, StateReply};
 
 use non_fungible_token::base::NonFungibleTokenBase;
 use non_fungible_token::{Approve, ApproveForAll, NonFungibleToken, Transfer};
+use non_fungible_token::token::{TokenMetadata};
 
 const GAS_RESERVE: u64 = 500_000_000;
 const ZERO_ID: ActorId = ActorId::new(H256::zero().to_fixed_bytes());
 
 #[derive(Debug, Decode, TypeInfo)]
 pub enum Action {
-    Mint,
+    Mint(MintInput),
     Burn(U256),
     Transfer(TransferInput),
     Approve(ApproveInput),
     ApproveForAll(ApproveForAllInput),
     OwnerOf(U256),
     BalanceOf(H256),
+    SendToMarket(ToMarket),
 }
 
 #[derive(Debug, Encode, Decode, TypeInfo)]
@@ -41,8 +43,9 @@ pub enum Event {
 #[derive(Debug)]
 pub struct NFT {
     pub tokens: NonFungibleToken,
-    pub token_id: U256,
     pub owner: ActorId,
+    pub supply: U256,
+    pub minted_amount: U256,
 }
 
 static mut CONTRACT: NFT = NFT {
@@ -56,13 +59,31 @@ static mut CONTRACT: NFT = NFT {
         balances: BTreeMap::new(),
         operator_approval: BTreeMap::new(),
     },
-    token_id: U256::zero(),
     owner: ActorId::new(H256::zero().to_fixed_bytes()),
+    supply: U256::zero(),
+    minted_amount: U256::zero(),
+
 };
 
 impl NFT {
-    fn mint(&mut self) {
-        self.tokens.owner_by_id.insert(self.token_id, msg::source());
+    fn mint(
+        &mut self,
+        token_id: U256,
+        media: String,
+        reference: String,
+        ) {
+        if self.minted_amount >= self.supply {
+            panic!("No tokens left");
+        }
+        self.tokens.owner_by_id.insert(token_id, msg::source());
+        let metadata = TokenMetadata {
+            title: None,
+            description: None,
+            media: Some(media),
+            reference: Some(reference),
+        };
+        self.tokens.token_metadata_by_id.insert(token_id, metadata);
+        self.minted_amount = self.minted_amount.saturating_add(U256::one());
         let balance = *self
             .tokens
             .balances
@@ -75,16 +96,24 @@ impl NFT {
         let transfer_token = Transfer {
             from: H256::zero(),
             to: H256::from_slice(msg::source().as_ref()),
-            token_id: self.token_id,
+            token_id,
         };
-
-        self.token_id = self.token_id.saturating_add(U256::one());
 
         msg::reply(
             Event::Transfer(transfer_token),
             exec::gas_available() - GAS_RESERVE,
             0,
         );
+    }
+
+    async fn send_token_to_market(
+        &self,
+        token_id: U256,
+        price: u128,
+    ) {
+        if msg::source() == *self.tokens.owner_by_id.get(&token_id).unwrap_or(&ZERO_ID) {
+            panic!("Only owner can send token to market");
+        };
     }
 
     fn burn(&mut self, token_id: U256) {
@@ -119,7 +148,7 @@ impl NFT {
 }
 
 gstd::metadata! {
-    title: "NftExample",
+    title: "NFT",
         init:
             input: InitConfig,
         handle:
@@ -130,12 +159,16 @@ gstd::metadata! {
             output: StateReply,
 }
 
-#[no_mangle]
-pub unsafe extern "C" fn handle() {
+#[gstd::async_main]
+async fn main() {
     let action: Action = msg::load().expect("Could not load Action");
     match action {
-        Action::Mint => {
-            CONTRACT.mint();
+        Action::Mint(input) => {
+            CONTRACT.mint(
+                input.token_id,
+                input.media,
+                input.reference,
+            );
         }
         Action::Burn(input) => {
             CONTRACT.burn(input);
@@ -146,6 +179,12 @@ pub unsafe extern "C" fn handle() {
                 &ActorId::new(input.to.to_fixed_bytes()),
                 input.token_id,
             );
+        }
+        Action::SendToMarket(input) => {
+            CONTRACT.send_token_to_market(
+                input.token_id,
+                input.price,
+            ).await;
         }
         Action::Approve(input) => {
             CONTRACT.tokens.approve(
