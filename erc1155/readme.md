@@ -50,3 +50,26 @@
         uint256[] values
     );
 ```
+
+### implementation
+
+```rust
+struct ERC1155Token {
+    name: String,
+    symbol: String,
+    base_uri: String,
+    token_id: U256,
+    token_owner: BTreeMap<U256, ActorId>,
+    token_approvals: BTreeMap<U256, ActorId>,
+    owned_tokens_count: BTreeMap<ActorId, U256>,
+    operator_approval: BTreeMap<ActorId, BTreeMap<ActorId, bool>>,
+}
+
+enum Event {
+    TransferSingle(TransferSingle),
+    TransferBatch(TransferBatch),
+    Approval(Approve),
+    ApprovalForAll(ApproveForAll),
+    TokenURI(String),
+}
+```
