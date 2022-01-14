@@ -98,3 +98,7 @@ pub enum Action {
 https://eips.ethereum.org/EIPS/eip-1155
 
 https://github.com/gear-tech/apps/pull/5
+
+https://github.com/gear-tech/apps/pull/9
+
+https://github.com/gear-tech/apps/pull/10
