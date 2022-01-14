@@ -78,9 +78,6 @@ enum Event {
     TokenURI(String),
 }
 ```
-## issue
-
-Smart contracts implementing the ERC-1155 standard MUST implement the ERC-165 supportsInterface function and MUST return the constant value true if `0xd9b67a26` is passed through the interfaceID argument.
 
 ## Refer
 
