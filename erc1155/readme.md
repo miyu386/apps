@@ -77,6 +77,20 @@ enum Event {
     ApprovalForAll(ApproveForAll),
     TokenURI(String),
 }
+
+#[derive(Debug, Decode, Encode, TypeInfo)]
+pub enum Action {
+    Mint(MintInput),
+    Burn(BurnInput),
+    Transfer(TransferInput),
+    TransferFrom(TransferFromInput),
+    Approve(ApproveInput),
+    IncreaseAllowance(ApproveInput),
+    DecreaseAllowance(ApproveInput),
+    BalanceOf(ActorId),
+    AddAdmin(ActorId),
+    RemoveAdmin(ActorId),
+}
 ```
 
 ## Refer
