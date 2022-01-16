@@ -24,7 +24,6 @@ pub async fn ft_transfer(token_id: &ActorId, from: &ActorId, to: &ActorId, amoun
     }
 }
 
-
 #[derive(Debug, Decode, Encode, TypeInfo)]
 pub enum FTEvent {
     Transfer(TransferData),

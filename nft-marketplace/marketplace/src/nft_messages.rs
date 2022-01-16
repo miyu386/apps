@@ -1,5 +1,5 @@
 use gstd::{exec, msg, prelude::*, ActorId};
-use primitive_types::{U256, H256};
+use primitive_types::{H256, U256};
 const GAS_RESERVE: u64 = 500_000_000;
 
 pub async fn nft_transfer(nft_program_id: &ActorId, to: &ActorId, token_id: U256) {
@@ -25,7 +25,7 @@ pub async fn nft_transfer(nft_program_id: &ActorId, to: &ActorId, token_id: U256
 
 pub async fn nft_owner_of(nft_program_id: &ActorId, token_id: U256) -> ActorId {
     let owner_of: NFTEvent = msg::send_and_wait_for_reply(
-        *nft_program_id, 
+        *nft_program_id,
         NFTAction::OwnerOf(token_id),
         exec::gas_available() - GAS_RESERVE,
         0,

@@ -7,14 +7,16 @@ use primitive_types::{H256, U256};
 use scale_info::TypeInfo;
 
 pub mod payloads;
-pub use payloads::{ToMarket, ApproveForAllInput, ApproveInput, InitConfig, TransferInput, MintInput};
+pub use payloads::{
+    ApproveForAllInput, ApproveInput, InitConfig, MintInput, ToMarket, TransferInput,
+};
 
 pub mod state;
 pub use state::{State, StateReply};
 
 use non_fungible_token::base::NonFungibleTokenBase;
+use non_fungible_token::token::TokenMetadata;
 use non_fungible_token::{Approve, ApproveForAll, NonFungibleToken, Transfer};
-use non_fungible_token::token::{TokenMetadata};
 
 const GAS_RESERVE: u64 = 500_000_000;
 const ZERO_ID: ActorId = ActorId::new(H256::zero().to_fixed_bytes());
@@ -62,16 +64,10 @@ static mut CONTRACT: NFT = NFT {
     owner: ActorId::new(H256::zero().to_fixed_bytes()),
     supply: U256::zero(),
     minted_amount: U256::zero(),
-
 };
 
 impl NFT {
-    fn mint(
-        &mut self,
-        token_id: U256,
-        media: String,
-        reference: String,
-        ) {
+    fn mint(&mut self, token_id: U256, media: String, reference: String) {
         if self.minted_amount >= self.supply {
             panic!("No tokens left");
         }
@@ -106,11 +102,7 @@ impl NFT {
         );
     }
 
-    async fn send_token_to_market(
-        &self,
-        token_id: U256,
-        price: u128,
-    ) {
+    async fn send_token_to_market(&self, token_id: U256, price: u128) {
         if msg::source() == *self.tokens.owner_by_id.get(&token_id).unwrap_or(&ZERO_ID) {
             panic!("Only owner can send token to market");
         };
@@ -164,11 +156,7 @@ async fn main() {
     let action: Action = msg::load().expect("Could not load Action");
     match action {
         Action::Mint(input) => {
-            CONTRACT.mint(
-                input.token_id,
-                input.media,
-                input.reference,
-            );
+            CONTRACT.mint(input.token_id, input.media, input.reference);
         }
         Action::Burn(input) => {
             CONTRACT.burn(input);
@@ -181,10 +169,9 @@ async fn main() {
             );
         }
         Action::SendToMarket(input) => {
-            CONTRACT.send_token_to_market(
-                input.token_id,
-                input.price,
-            ).await;
+            CONTRACT
+                .send_token_to_market(input.token_id, input.price)
+                .await;
         }
         Action::Approve(input) => {
             CONTRACT.tokens.approve(
