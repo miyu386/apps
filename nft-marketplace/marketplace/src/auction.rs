@@ -69,7 +69,7 @@ impl Market {
         });
         msg::reply(
             Event::AuctionCreated(ContractTokenPrice {
-                nft_contract_id: H256::from_slice(nft_contract_id.as_ref()),
+                nft_contract_id: *nft_contract_id,
                 token_id,
                 price: min_price,
             }),
@@ -107,7 +107,7 @@ impl Market {
             nft_transfer(nft_contract_id, &highest_bid.id, token_id).await;
             msg::reply(
                 Event::AuctionSettled(ContractTokenPrice {
-                    nft_contract_id: H256::from_slice(nft_contract_id.as_ref()),
+                    nft_contract_id: *nft_contract_id,
                     token_id,
                     price: item.price,
                 }),
@@ -117,7 +117,7 @@ impl Market {
         } else {
             msg::reply(
                 Event::AuctionCancelled(ContractToken {
-                    nft_contract_id: H256::from_slice(nft_contract_id.as_ref()),
+                    nft_contract_id: *nft_contract_id,
                     token_id,
                 }),
                 exec::gas_available() - GAS_RESERVE,
@@ -167,7 +167,7 @@ impl Market {
         item.auction = Some(auction);
         msg::reply(
             Event::BidAdded(ContractTokenPrice {
-                nft_contract_id: H256::from_slice(nft_contract_id.as_ref()),
+                nft_contract_id: *nft_contract_id,
                 token_id,
                 price,
             }),

@@ -8,11 +8,17 @@ use scale_info::TypeInfo;
 
 pub mod payloads;
 pub use payloads::{
-    ApproveForAllInput, ApproveInput, InitConfig, MintInput, ToMarket, TransferInput,
+    ApproveForAllInput, ApproveInput, InitConfig, MintInput, ToMarket, TransferInput, NFTPayout
 };
 
 pub mod state;
 pub use state::{State, StateReply};
+
+pub mod royalties;
+pub use royalties::{Royalties, Payout};
+
+pub mod market_messages;
+pub use market_messages::list_nfts_on_market;
 
 use non_fungible_token::base::NonFungibleTokenBase;
 use non_fungible_token::token::TokenMetadata;
@@ -31,6 +37,8 @@ pub enum Action {
     OwnerOf(U256),
     BalanceOf(H256),
     SendToMarket(ToMarket),
+    TokensForOwner(H256),
+    NFTPayout(NFTPayout),
 }
 
 #[derive(Debug, Encode, Decode, TypeInfo)]
@@ -40,14 +48,19 @@ pub enum Event {
     ApprovalForAll(ApproveForAll),
     OwnerOf(H256),
     BalanceOf(U256),
+    TokensForOwner(Vec<U256>),
+    NFTPayout(Payout),
 }
 
 #[derive(Debug)]
 pub struct NFT {
     pub tokens: NonFungibleToken,
     pub owner: ActorId,
+    pub owner_to_ids: BTreeMap<ActorId, Vec<U256>>,
     pub supply: U256,
     pub minted_amount: U256,
+    pub royalties: Option<Royalties>,
+    pub price: u128,
 }
 
 static mut CONTRACT: NFT = NFT {
@@ -62,8 +75,11 @@ static mut CONTRACT: NFT = NFT {
         operator_approval: BTreeMap::new(),
     },
     owner: ActorId::new(H256::zero().to_fixed_bytes()),
+    owner_to_ids: BTreeMap::new(),
     supply: U256::zero(),
     minted_amount: U256::zero(),
+    royalties: None,
+    price: 0,
 };
 
 impl NFT {
@@ -72,6 +88,9 @@ impl NFT {
             panic!("No tokens left");
         }
         self.tokens.owner_by_id.insert(token_id, msg::source());
+        self.owner_to_ids.entry(msg::source())
+            .and_modify(|ids| ids.push(token_id))
+            .or_insert(vec![token_id]);
         let metadata = TokenMetadata {
             title: None,
             description: None,
@@ -102,12 +121,6 @@ impl NFT {
         );
     }
 
-    async fn send_token_to_market(&self, token_id: U256, price: u128) {
-        if msg::source() == *self.tokens.owner_by_id.get(&token_id).unwrap_or(&ZERO_ID) {
-            panic!("Only owner can send token to market");
-        };
-    }
-
     fn burn(&mut self, token_id: U256) {
         if !self.tokens.exists(token_id) {
             panic!("NonFungibleToken: Token does not exist");
@@ -133,6 +146,38 @@ impl NFT {
         };
         msg::reply(
             Event::Transfer(transfer_token),
+            exec::gas_available() - GAS_RESERVE,
+            0,
+        );
+    }
+
+    async fn send_tokens_to_market(
+        &mut self, 
+        market_id: &ActorId, 
+        tokens: Vec<U256>, 
+        price: u128,
+        on_sale: bool,
+    ) {
+        for token in tokens.iter() {
+            if self.tokens.owner_by_id.get(&token).unwrap_or(&ZERO_ID) != &msg::source() {
+                panic!("Only owner can send token to market");
+            }
+            self.tokens.token_approvals.insert(*token, *market_id);
+        }
+        list_nfts_on_market(market_id, &msg::source(), tokens, price, on_sale).await;
+    }
+
+    async fn nft_payout(&self, owner: &ActorId, amount: u128,) {
+        let payouts: Payout = 
+            if self.royalties.is_some() {
+                self.royalties.as_ref().unwrap().payouts(owner, amount)
+            } else {
+                let mut single_payout = BTreeMap::new();
+                single_payout.insert(*owner, amount);
+                single_payout
+            };
+        msg::reply(
+            Event::NFTPayout(payouts),
             exec::gas_available() - GAS_RESERVE,
             0,
         );
@@ -170,8 +215,27 @@ async fn main() {
         }
         Action::SendToMarket(input) => {
             CONTRACT
-                .send_token_to_market(input.token_id, input.price)
+                .send_tokens_to_market(
+                    &input.market_id,
+                    input.tokens, 
+                    input.price,
+                    input.on_sale,
+                )
                 .await;
+        }
+        Action::TokensForOwner(input) => {
+            let tokens = CONTRACT.owner_to_ids
+                    .get(&ActorId::new(input.to_fixed_bytes()))
+                    .unwrap_or(&vec![])
+                    .clone();
+             msg::reply(
+                Event::TokensForOwner(tokens),
+                exec::gas_available() - GAS_RESERVE,
+                0,
+            );
+        }
+        Action::NFTPayout(input) => {
+            CONTRACT.nft_payout(&input.owner, input.amount).await;
         }
         Action::Approve(input) => {
             CONTRACT.tokens.approve(
@@ -218,6 +282,7 @@ pub unsafe extern "C" fn init() {
         .tokens
         .init(config.name, config.symbol, config.base_uri);
     CONTRACT.owner = msg::source();
+    CONTRACT.price = config.price;
 }
 
 #[no_mangle]

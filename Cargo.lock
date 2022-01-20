@@ -264,6 +264,7 @@ version = "0.1.0"
 dependencies = [
  "gstd",
  "hex",
+ "nft",
  "parity-scale-codec",
  "primitive-types",
  "scale-info",

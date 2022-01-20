@@ -1,26 +1,22 @@
+use crate::{ZERO_ID, Royalties};
 use gstd::{exec, msg, prelude::*, ActorId};
 use primitive_types::{H256, U256};
+pub type Payout = BTreeMap<ActorId, u128>;
 const GAS_RESERVE: u64 = 500_000_000;
 
 pub async fn nft_transfer(nft_program_id: &ActorId, to: &ActorId, token_id: U256) {
-    let transfer_input = TransferInput {
-        to: H256::from_slice(to.as_ref()),
+    let transfer_input = Transfer {
+        to: *to,
         token_id,
     };
-    let transfer_response: NFTEvent = msg::send_and_wait_for_reply(
+    let _transfer_response: NFTEvent = msg::send_and_wait_for_reply(
         *nft_program_id,
         NFTAction::Transfer(transfer_input),
         exec::gas_available() - GAS_RESERVE,
         0,
     )
     .await
-    .unwrap();
-
-    if let NFTEvent::Transfer(transfer_response) = transfer_response {
-        if transfer_response.token_id != token_id {
-            panic!("error in transfer");
-        }
-    }
+    .expect("error in transfer");
 }
 
 pub async fn nft_owner_of(nft_program_id: &ActorId, token_id: U256) -> ActorId {
@@ -31,37 +27,79 @@ pub async fn nft_owner_of(nft_program_id: &ActorId, token_id: U256) -> ActorId {
         0,
     )
     .await
-    .unwrap();
-
-    if let NFTEvent::OwnerOf(owner_of) = owner_of {
-        ActorId::new(owner_of.to_fixed_bytes())
-    } else {
-        panic!("Error in function 'nft_owner_of' call");
-    }
+    .expect("Error in function 'nft_owner_of' call");
+   match owner_of {
+        NFTEvent::OwnerOf(owner) => owner,
+        _ => ZERO_ID,
+   }
 }
 
-#[derive(Debug, Decode, Encode, TypeInfo)]
-pub enum NFTEvent {
-    Transfer(TransferInput),
-    Approval,
-    ApprovalForAll,
-    OwnerOf(H256),
-    BalanceOf(U256),
+
+pub async fn tokens_for_owner(nft_program_id: &ActorId, account: &ActorId) -> Vec<U256> {
+    let tokens: NFTEvent = msg::send_and_wait_for_reply(
+        *nft_program_id,
+        NFTAction::TokensForOwner(*account),
+        exec::gas_available() - GAS_RESERVE,
+        0,
+    )
+    .await
+    .expect("Error in function 'nft_owner_of' call");
+    match tokens {
+        NFTEvent::TokensForOwner(tokens) => tokens,
+        _ => vec![],
+   }
 }
 
-#[derive(Debug, Decode, Encode, TypeInfo)]
+pub async fn nft_payouts(nft_program_id: &ActorId, owner: &ActorId, amount: u128,) -> Payout {
+    let payouts: NFTEvent = msg::send_and_wait_for_reply(
+        *nft_program_id,
+        NFTAction::NFTPayout(NFTPayout {
+            owner: *owner,
+            amount
+        }),
+        exec::gas_available() - GAS_RESERVE,
+        0,
+    )
+    .await
+    .expect("Error in function 'nft_payout' call");
+    match payouts {
+        NFTEvent::NFTPayout(payouts) => payouts,
+        _ => BTreeMap::new(),
+   }
+}
+#[derive(Debug, Encode, Decode, TypeInfo)]
 pub enum NFTAction {
     Mint,
     Burn(U256),
-    Transfer(TransferInput),
+    Transfer(Transfer),
     Approve,
     ApproveForAll,
     OwnerOf(U256),
-    BalanceOf(H256),
+    BalanceOf(ActorId),
+    SendToMarket,
+    TokensForOwner(ActorId),
+    NFTPayout(NFTPayout),
+}
+
+#[derive(Debug, Encode, Decode, TypeInfo)]
+pub enum NFTEvent {
+    Transfer(Transfer),
+    Approval,
+    ApprovalForAll,
+    OwnerOf(ActorId),
+    BalanceOf(U256),
+    TokensForOwner(Vec<U256>),
+    NFTPayout(Payout),
 }
 
 #[derive(Debug, Decode, Encode, TypeInfo)]
-pub struct TransferInput {
-    pub to: H256,
+pub struct Transfer {
+    pub to: ActorId,
     pub token_id: U256,
+}
+
+#[derive(Debug, Decode, Encode, TypeInfo)]
+pub struct NFTPayout{
+    pub owner: ActorId,
+    pub amount: u128,
 }

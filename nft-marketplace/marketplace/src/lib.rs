@@ -5,7 +5,7 @@ use codec::{Decode, Encode};
 use gstd::{collections::btree_map::Entry, debug, exec, msg, prelude::*, ActorId};
 use primitive_types::{H256, U256};
 use scale_info::TypeInfo;
-
+use nft::royalties::{Royalties, Payout};
 pub mod nft_messages;
 use nft_messages::{nft_owner_of, nft_transfer};
 
@@ -19,6 +19,7 @@ pub mod offers;
 use offers::Offer;
 
 pub mod sale;
+pub mod listing_nfts;
 
 const GAS_RESERVE: u64 = 500_000_000;
 const ZERO_ID: ActorId = ActorId::new(H256::zero().to_fixed_bytes());
@@ -69,8 +70,14 @@ static mut CONTRACT: Market = Market {
 };
 
 impl Market {
-    fn add_nft_contract(&mut self, nft_contract_id: &ActorId) {
+    async fn add_nft_contract(&mut self, nft_contract_id: &ActorId) {
         self.approved_nft_contracts.push(*nft_contract_id);
+        // let info = nft_info(nft_contract_id).await;
+        // self.approved_nft_contracts.insert(*nft_contract_id, info.as_ref().unwrap().royalties.clone());
+        // let minted_nft = info.unwrap().minted_amount;
+        // for nft in minted_nft.iter() {
+        //     self.create_item(nft_contract_id, i, 0).await;
+        // }
     }
 
     // Creates new item.
@@ -80,12 +87,12 @@ impl Market {
     // * `nft_contract_id`: an actor, who wishes to become a DAO member
     // * `token_id`: the number of tokens the applicant offered for shares in DAO
     // * `price`: the amount of shares the applicant is requesting for his token tribute
-    async fn create_item(&mut self, nft_contract_id: &ActorId, token_id: U256, price: u128) {
+    async fn create_item(&mut self, nft_contract_id: &ActorId, token_id: U256, price: u128, on_sale: bool) {
         if self.item_exists(nft_contract_id, token_id) {
             panic!("That item already exists");
         }
         let owner_id = nft_owner_of(nft_contract_id, token_id).await;
-        nft_transfer(nft_contract_id, &owner_id, token_id).await;
+       // nft_transfer(nft_contract_id, &exec::program_id(), token_id).await;
         let contract_and_token_id =
             format!("{}{}", H256::from_slice(nft_contract_id.as_ref()), token_id);
         let new_item = Item {
@@ -94,7 +101,7 @@ impl Market {
             token_id,
             price,
             auction: None,
-            on_sale: true,
+            on_sale,
             offers: None,
         };
         self.items.insert(contract_and_token_id, new_item);
@@ -115,7 +122,22 @@ impl Market {
     }
 
     async fn withdraw(&mut self, amount: u128) {
-        match self.balances.entry(msg::source()) {
+        self.reduce_balance(&msg::source(), amount);
+        ft_transfer(
+            &self.approved_ft_token,
+            &exec::program_id(),
+            &msg::source(),
+            amount,
+        )
+        .await;
+    }
+
+    fn reduce_balance(
+        &mut self, 
+        account: &ActorId,
+        amount: u128,
+    ) {
+        match self.balances.entry(*account) {
             Entry::Occupied(mut o) => {
                 if o.get() < &amount {
                     panic!("not enough balanace to withdraw")
@@ -126,16 +148,7 @@ impl Market {
                 panic!("account has no balance");
             }
         };
-
-        ft_transfer(
-            &self.approved_ft_token,
-            &exec::program_id(),
-            &msg::source(),
-            amount,
-        )
-        .await;
     }
-
     fn item_exists(&mut self, nft_contract_id: &ActorId, token_id: U256) -> bool {
         let contract_and_token_id =
             format!("{}{}", H256::from_slice(nft_contract_id.as_ref()), token_id);
@@ -162,20 +175,31 @@ gstd::metadata! {
 async fn main() {
     let action: Action = msg::load().expect("Could not load Action");
     match action {
-        Action::AddNftContract(input) => {}
-        Action::CreateItem(input) => {
+        Action::AddNftContract(input) => {
+            CONTRACT.add_nft_contract(&input).await;
+        }
+        Action::ListMyNFTs(input) => {
+            CONTRACT.list_my_nfts(
+                &input.nft_contract_id,
+                input.price,
+                input.on_sale,
+            )
+            .await;
+        }
+        Action::NFTContractCall(input) => {
             CONTRACT
-                .create_item(
-                    &ActorId::new(input.nft_contract_id.to_fixed_bytes()),
-                    input.token_id,
+                .call_from_nft_contract(
+                    &input.owner,
+                    input.tokens,
                     input.price,
+                    input.on_sale,
                 )
                 .await;
         }
         Action::BuyItem(input) => {
             CONTRACT
                 .buy_item(
-                    &ActorId::new(input.nft_contract_id.to_fixed_bytes()),
+                    &input.nft_contract_id,
                     input.token_id,
                 )
                 .await;
@@ -187,12 +211,12 @@ async fn main() {
             CONTRACT.withdraw(input).await;
         }
         Action::AddBid(input) => CONTRACT.add_bid(
-            &ActorId::new(input.nft_contract_id.to_fixed_bytes()),
+            &input.nft_contract_id,
             input.token_id,
             input.price,
         ),
         Action::CreateAuction(input) => CONTRACT.create_auction(
-            &ActorId::new(input.nft_contract_id.to_fixed_bytes()),
+            &input.nft_contract_id,
             input.token_id,
             input.price,
             input.bid_period,
@@ -200,7 +224,7 @@ async fn main() {
         Action::SettleAuction(input) => {
             CONTRACT
                 .settle_auction(
-                    &ActorId::new(input.nft_contract_id.to_fixed_bytes()),
+                    &input.nft_contract_id,
                     input.token_id,
                 )
                 .await;
@@ -237,14 +261,15 @@ pub unsafe extern "C" fn init() {
 
 #[derive(Debug, Decode, TypeInfo)]
 pub enum Action {
-    AddNftContract(H256),
-    CreateItem(ContractTokenPrice),
+    AddNftContract(ActorId),
     BuyItem(ContractToken),
     Deposit(u128),
     Withdraw(u128),
     AddBid(ContractTokenPrice),
     CreateAuction(CreateAuctionInput),
     SettleAuction(ContractToken),
+    ListMyNFTs(ListMyNFTs),
+    NFTContractCall(NFTContractCall),
 }
 
 #[derive(Debug, Encode, Decode, TypeInfo)]
@@ -254,6 +279,7 @@ pub enum Event {
     AuctionCreated(ContractTokenPrice),
     AuctionSettled(ContractTokenPrice),
     AuctionCancelled(ContractToken),
+    NFTsListed(NFTsListed),
 }
 
 #[derive(Debug, Decode, Encode, TypeInfo)]
@@ -268,28 +294,51 @@ pub enum StateReply {
 
 #[derive(Debug, Decode, Encode, TypeInfo)]
 pub struct ContractToken {
-    nft_contract_id: H256,
+    nft_contract_id: ActorId,
     token_id: U256,
 }
 
 #[derive(Debug, Decode, Encode, TypeInfo)]
 pub struct ItemSoldOutput {
-    owner: H256,
-    nft_contract_id: H256,
+    owner: ActorId,
+    nft_contract_id: ActorId,
     token_id: U256,
 }
 
 #[derive(Debug, Decode, Encode, TypeInfo)]
 pub struct ContractTokenPrice {
-    nft_contract_id: H256,
+    nft_contract_id: ActorId,
     token_id: U256,
     price: u128,
 }
 
 #[derive(Debug, Decode, Encode, TypeInfo)]
 pub struct CreateAuctionInput {
-    nft_contract_id: H256,
+    nft_contract_id: ActorId,
     token_id: U256,
     price: u128,
     bid_period: u64,
+}
+
+#[derive(Debug, Decode, Encode, TypeInfo)]
+pub struct ListMyNFTs {
+    nft_contract_id: ActorId,
+    price: u128,
+    on_sale: bool,
+}
+
+#[derive(Debug, Decode, Encode, TypeInfo)]
+pub struct NFTContractCall {
+    owner: ActorId,
+    tokens: Vec<U256>,
+    price: u128,
+    on_sale: bool,
+}
+
+#[derive(Debug, Decode, Encode, TypeInfo)]
+pub struct NFTsListed {
+    nft_contract_id: ActorId,
+    owner: ActorId,
+    tokens: Vec<U256>,
+    price: u128,
 }
