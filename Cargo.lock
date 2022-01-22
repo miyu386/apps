@@ -45,6 +45,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7a81dae078cea95a014a339291cec439d2f232ebe854a9d672b796c6afafa9b7"
 
 [[package]]
+name = "curve-amm"
+version = "0.1.0"
+dependencies = [
+ "fungible-token-messages",
+ "gstd",
+ "hex",
+ "parity-scale-codec",
+ "primitive-types",
+ "scale-info",
+ "sp-arithmetic",
+]
+
+[[package]]
 name = "demo-ping"
 version = "0.1.0"
 dependencies = [
