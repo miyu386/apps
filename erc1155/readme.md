@@ -1,41 +1,21 @@
-# ERC1155
+# ERC-1155
 
 ## Description
 Tokens standards like ERC-20 and ERC-721 require a separate contract to be deployed for each token type or collection. This places a lot of redundant bytecode on the Ethereum blockchain and limits certain functionality by the nature of separating each token contract into its own permissioned address. With the rise of blockchain games and platforms like Enjin Coin, game developers may be creating thousands of token types, and a new type of token standard is needed to support them. However, ERC-1155 is not specific to games and many other applications can benefit from this flexibility.
 
 New functionality is possible with this design such as transferring multiple token types at once, saving on transaction costs. Trading (escrow / atomic swaps) of multiple tokens can be built on top of this standard and it removes the need to “approve” individual token contracts separately. It is also easy to describe and mix multiple fungible or non-fungible token types in a single contract.
 
-## Interface
+## ERC-1155 functions
 
-### function
+```rust
+  fn safe_transfer_from(&mut self, from: &ActorId, to: &ActorId, token_id: U256);
+  fn safe_batch_transfer_from(&mut self, from: &ActorId, to: &ActorId, token_id: U256);
 
-```js
-    function balanceOf(address account, uint256 id) external view returns (uint256);
+  fn approve_for_all(&mut self, owner: &ActorId, operator: &ActorId, approved: bool);
+  fn is_approved_for_all(&self, account: &ActorId)
 
-    function balanceOfBatch(address[] calldata accounts, uint256[] calldata ids)
-        external
-        view
-        returns (uint256[] memory);
-
-    function setApprovalForAll(address operator, bool approved) external;
-
-    function isApprovedForAll(address account, address operator) external view returns (bool);
-
-    function safeTransferFrom(
-        address from,
-        address to,
-        uint256 id,
-        uint256 amount,
-        bytes calldata data
-    ) external;
-
-    function safeBatchTransferFrom(
-        address from,
-        address to,
-        uint256[] calldata ids,
-        uint256[] calldata amounts,
-        bytes calldata data
-    ) external;
+  fn balance_of(&self, account: &ActorId);
+  fn balance_of_batch(&self, accounts: &ActorId)
 ```
 
 ### event
