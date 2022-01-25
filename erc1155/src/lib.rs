@@ -9,21 +9,25 @@ use gstd::{prelude::*, ActorId};
 use primitive_types::U256;
 use scale_info::TypeInfo;
 
-// use token::Erc1155TokenBase;
-// use Erc1155TokenBase;
 pub mod base;
 
 const GAS_RESERVE: u64 = 500_000_000;
 
 #[derive(Debug)]
 struct Erc1155Token {
-    pub title: Option<String>,
+    pub name: String,
+    pub symbol: String,
+    pub base_uri: String,
     pub description: Option<String>,
     pub uri: Option<String>,
 }
 
 impl base::Erc1155TokenBase for Erc1155Token {
-    fn init(&mut self, name: String, symbol: String, base_uri: String) {}
+    fn init(&mut self, name: String, symbol: String, base_uri: String) {
+        self.name = name;
+        self.symbol = symbol;
+        self.base_uri = base_uri;
+    }
 
     fn balance_of(&self, account: &ActorId, token_id: U256) {}
     fn balance_of_batch(&self, accounts: &[ActorId], token_ids: &[U256]) {}
