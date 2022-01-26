@@ -5,7 +5,7 @@
 
 use codec::{Decode, Encode};
 use gstd::prelude::*;
-use gstd::{prelude::*, ActorId};
+use gstd::{exec, msg, prelude::*, ActorId};
 use primitive_types::U256;
 use scale_info::TypeInfo;
 
@@ -47,3 +47,30 @@ impl base::Erc1155TokenBase for Erc1155Token {
 }
 
 impl Erc1155Token {}
+
+// #[derive(Debug, Encode, TypeInfo, Decode)]
+pub enum Event<'a> {
+    TransferSingle {
+        operator: ActorId,
+        from: ActorId,
+        to: ActorId,
+        token_id: U256,
+        value: U256,
+    },
+    TransferBatch {
+        operator: ActorId,
+        from: ActorId,
+        to: ActorId,
+        token_ids: &'a [U256],
+        values: &'a [U256],
+    },
+    ApprovalForAll {
+        owner: ActorId,
+        operator: ActorId,
+        approved: bool,
+    },
+    URI {
+        value: String,
+        token_id: U256,
+    },
+}
