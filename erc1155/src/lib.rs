@@ -20,7 +20,7 @@ struct Erc1155Token {
     symbol: String,
     description: String,
     base_uri: String,
-    balances: BTreeMap<ActorId, BTreeMap<u128, u128>>
+    balances: BTreeMap<u128, BTreeMap<ActorId, u128>>
 }
 
 static mut ERC1155_TOKEN: Erc1155Token = Erc1155Token {
@@ -32,8 +32,14 @@ static mut ERC1155_TOKEN: Erc1155Token = Erc1155Token {
 };
 
 impl Erc1155Token {
+    fn get_balance(&self, account: &ActorId, id: &u128) -> u128 {
+        // TODO
+        // unwrap panic
+        *self.balances.get(id).unwrap().get(account).unwrap_or(&0)
+    }
+
     fn balance_of(&self, account: &ActorId, id: &u128) -> u128 {
-        *self.balances.get(account).unwrap().get(id).unwrap_or(&0)
+        self.get_balance(account, id)
     }
 }
 
