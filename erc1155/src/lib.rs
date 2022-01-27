@@ -92,7 +92,42 @@ impl Erc1155Token {
         // ApprovalForAll event
     }
 
+    fn get_approval(&mut self, owner: &ActorId, operator: &ActorId) -> &bool {
+        if owner != operator {
+            panic!("ERC1155: setting approval status for self")
+        }
 
+        self.operator_approvals
+            .entry(*owner)
+            .or_default()
+            .get(operator)
+            .unwrap_or(&false)
+    }
+
+    fn safe_transfer_from(&mut self, from: &ActorId, to: &ActorId, id: &u128, amount: u128) {
+        if from == to {
+            panic!("ERC1155: caller is not owner nor approved")
+        }
+
+        if !self.get_approval(from, to) {
+            panic!("ERC1155: caller is not owner nor approved")
+        }
+
+        if to == &ZERO_ID {
+            panic!("ERC1155: transfer to the zero address")
+        }
+
+        let from_balance = self.get_balance(from, id);
+
+        if from_balance < amount {
+            panic!("ERC1155: insufficient balance for transfer")
+        }
+
+        self.set_balance(from, id, from_balance.saturating_sub(amount));
+        let to_balance = self.get_balance(to, id);
+        self.set_balance(to, id, to_balance.saturating_add(amount));
+        // ApprovalForAll event
+    }
 }
 
 #[derive(Debug, Decode, Encode, TypeInfo)]
