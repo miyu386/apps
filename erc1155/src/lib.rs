@@ -102,6 +102,7 @@ impl Erc1155Token {
             .entry(*owner)
             .or_default()
             .insert(*operator, approved);
+
         // ApprovalForAll event
     }
 
@@ -143,7 +144,47 @@ impl Erc1155Token {
         self.set_balance(from, id, from_balance.saturating_sub(amount));
         let to_balance = self.get_balance(to, id);
         self.set_balance(to, id, to_balance.saturating_add(amount));
-        // ApprovalForAll event
+        // TransferSingle event
+    }
+
+    fn safe_batch_transfer_from(
+        &mut self,
+        from: &ActorId,
+        to: &ActorId,
+        ids: &[u128],
+        amounts: &[u128],
+    ) {
+        if from == to {
+            panic!("ERC1155: caller is not owner nor approved")
+        }
+
+        if !self.get_approval(from, to) {
+            panic!("ERC1155: caller is not owner nor approved")
+        }
+
+        if to == &ZERO_ID {
+            panic!("ERC1155: transfer to the zero address")
+        }
+
+        if ids.len() != amounts.len() {
+            panic!("ERC1155: ids and amounts length mismatch")
+        }
+
+        for (i, ele) in ids.iter().enumerate() {
+            let amount = amounts[i];
+
+            let from_balance = self.get_balance(from, ele);
+
+            if from_balance < amount {
+                panic!("ERC1155: insufficient balance for transfer")
+            }
+
+            self.set_balance(from, ele, from_balance.saturating_sub(amount));
+            let to_balance = self.get_balance(to, ele);
+            self.set_balance(to, ele, to_balance.saturating_add(amount));
+        }
+
+        // TransferBatch event
     }
 }
 
