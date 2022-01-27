@@ -92,6 +92,10 @@ impl Erc1155Token {
         // ApprovalForAll event
     }
 
+    fn is_approved_for_all(&mut self, account: &ActorId, operator: &ActorId) -> &bool {
+        self.get_approval(account, operator)
+    }
+
     fn get_approval(&mut self, owner: &ActorId, operator: &ActorId) -> &bool {
         if owner != operator {
             panic!("ERC1155: setting approval status for self")
