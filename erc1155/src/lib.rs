@@ -21,6 +21,7 @@ struct Erc1155Token {
     description: String,
     base_uri: String,
     balances: BTreeMap<u128, BTreeMap<ActorId, u128>>,
+    operator_approvals: BTreeMap<ActorId, BTreeMap<ActorId, bool>>,
 }
 
 static mut ERC1155_TOKEN: Erc1155Token = Erc1155Token {
@@ -29,6 +30,7 @@ static mut ERC1155_TOKEN: Erc1155Token = Erc1155Token {
     base_uri: String::new(),
     description: String::new(),
     balances: BTreeMap::new(),
+    operator_approvals: BTreeMap::new(),
 };
 
 impl Erc1155Token {
@@ -78,6 +80,19 @@ impl Erc1155Token {
 
         // TransferBatch event
     }
+
+    fn set_approval_for_all(&mut self, owner: &ActorId, operator: &ActorId, approved: bool) {
+        if owner != operator {
+            panic!("ERC1155: setting approval status for self")
+        }
+        self.operator_approvals
+            .entry(*owner)
+            .or_default()
+            .insert(*operator, approved);
+        // ApprovalForAll event
+    }
+
+
 }
 
 #[derive(Debug, Decode, Encode, TypeInfo)]
