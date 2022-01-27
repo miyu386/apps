@@ -48,7 +48,17 @@ impl base::Erc1155TokenBase for Erc1155Token {
 
 impl Erc1155Token {}
 
-// #[derive(Debug, Encode, TypeInfo, Decode)]
+#[derive(Debug, Decode, Encode, TypeInfo)]
+pub enum Action {
+    Mint,
+    Burn(U256),
+    Transfer { to: ActorId, token_id: U256 },
+    Approve { to: ActorId, token_id: U256 },
+    ApproveForAll { to: ActorId, approved: bool },
+    OwnerOf(U256),
+    BalanceOf(ActorId),
+}
+
 pub enum Event<'a> {
     TransferSingle {
         operator: ActorId,
