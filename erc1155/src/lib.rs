@@ -49,6 +49,19 @@ impl Erc1155Token {
         self.get_balance(account, id)
     }
 
+    fn balance_of_batch(&self, accounts: &[ActorId], ids: &[u128]) {
+        // TODO
+        // return multiple values
+        if accounts.len() != ids.len() {
+            panic!("ERC1155: accounts and ids length mismatch");
+        }
+
+        for (i, ele) in ids.iter().enumerate() {
+            let account = accounts[i];
+            self.get_balance(&account, &ele);
+        }
+    }
+
     fn mint(&mut self, account: &ActorId, id: &u128, amount: u128) {
         // check owner
         if account == &ZERO_ID {
