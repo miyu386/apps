@@ -12,41 +12,30 @@ use scale_info::TypeInfo;
 pub mod base;
 
 const GAS_RESERVE: u64 = 500_000_000;
+const ZERO_ID: ActorId = ActorId::new([0u8; 32]);
 
 #[derive(Debug)]
 struct Erc1155Token {
-    pub name: String,
-    pub symbol: String,
-    pub base_uri: String,
-    pub description: Option<String>,
-    pub uri: Option<String>,
+    name: String,
+    symbol: String,
+    description: String,
+    base_uri: String,
+    balances: BTreeMap<ActorId, BTreeMap<u128, u128>>
 }
 
-impl base::Erc1155TokenBase for Erc1155Token {
-    fn init(&mut self, name: String, symbol: String, base_uri: String) {
-        self.name = name;
-        self.symbol = symbol;
-        self.base_uri = base_uri;
-    }
+static mut ERC1155_TOKEN: Erc1155Token = Erc1155Token {
+    name: String::new(),
+    symbol: String::new(),
+    base_uri: String::new(),
+    description: String::new(),
+    balances: BTreeMap::new(),
+};
 
-    fn balance_of(&self, account: &ActorId, token_id: U256) {}
-    fn balance_of_batch(&self, accounts: &[ActorId], token_ids: &[U256]) {}
-    fn set_approval_for_all(&mut self, operator: &ActorId, approved: bool) {}
-    fn is_approved_for_all(&self, account: &ActorId, operator: &ActorId) {}
-    fn safe_transfer_from(&mut self, from: &ActorId, to: &ActorId, token_id: U256, value: U256) {}
-    fn safe_batch_transfer_from(
-        &mut self,
-        from: &ActorId,
-        to: &ActorId,
-        token_id: U256,
-        values: &[U256],
-    ) {
+impl Erc1155Token {
+    fn balance_of(&self, account: &ActorId, id: &u128) -> u128 {
+        *self.balances.get(account).unwrap().get(id).unwrap_or(&0)
     }
-
-    fn owner_of(&self, token_id: U256) {}
 }
-
-impl Erc1155Token {}
 
 #[derive(Debug, Decode, Encode, TypeInfo)]
 pub enum Action {
