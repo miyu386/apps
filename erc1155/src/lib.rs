@@ -94,6 +94,32 @@ impl Erc1155Token {
         // TransferBatch event
     }
 
+    fn burn_batch(&mut self, from: &ActorId, ids: &[u128], amounts: &[u128]) {
+        // TODO
+        // check owner
+        if from == &ZERO_ID {
+            panic!("ERC1155: burn from the zero address");
+        }
+
+        if ids.len() != amounts.len() {
+            panic!("ERC1155: ids and amounts length mismatch")
+        }
+
+        for (i, ele) in ids.iter().enumerate() {
+            let amount = amounts[i];
+
+            let from_balance = self.get_balance(from, ele);
+
+            if from_balance < amount {
+                panic!("ERC1155: burn amount exceeds balance")
+            }
+
+            self.set_balance(from, ele, from_balance.saturating_sub(amount));
+        }
+
+        // TransferBatch event
+    }
+
     fn set_approval_for_all(&mut self, owner: &ActorId, operator: &ActorId, approved: bool) {
         if owner != operator {
             panic!("ERC1155: setting approval status for self")
