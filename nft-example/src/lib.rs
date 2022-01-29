@@ -17,14 +17,13 @@ use non_fungible_token::NonFungibleToken;
 
 const GAS_RESERVE: u64 = 500_000_000;
 const ZERO_ID: ActorId = ActorId::new([0u8; 32]);
-const ROYALTY_MULTIPLIER: f64 = 0.05; // fixed royalty %? 
+const ROYALTY_MULTIPLIER: u64 = 5; // fixed royalty %? 
 
 #[derive(Debug, Decode, TypeInfo)]
 pub struct InitConfig {
     pub name: String,
     pub symbol: String,
     pub base_uri: String,
-    pub price: f64, // initconfig for the price parameter for NonFungiBleTokenBase constructor
 }
 
 #[derive(Debug)]
@@ -53,8 +52,7 @@ impl NFT {
 
         self.token
             .balances
-            .insert(msg::source(), balance.saturating_add(U256::one()));
-            .
+            .insert(msg::source(), balance.saturating_add(U256::one());
 
         msg::reply(
             Event::Transfer {
@@ -66,20 +64,17 @@ impl NFT {
             0,
         );
         self.token_id = self.token_id.saturating_add(U256::one());
-        self.origin = msg::source(); //creator id is saved to origin variable
+        self.origin = msg::source();
     }
 
-    fn payRoyalty(&mut self, from: &ActorID, to: &ActorId, token_id: U256, price: f64){
-        if !self.exists(token_id) {
-            panic!("NonFungibleToken: token does not exist");
-        }
-        if from == to {
-            panic!("NonFungibleToken: pay ro to current owner");
-        }
-        if to == &ZERO_ID {
-            panic!("NonFungibleToken: Transfer to zero address.");
-        }
+    fn royalty(&mut self, price: u64) {
+        msg::reply(
+            Event::Royalty {
+                amount: price*ROYALTY_MULTIPLIER/100;
+                origin: self.origin;
+            }, 0, 0);
     }
+
 
     fn burn(&mut self, token_id: U256) {
         if !self.token.exists(token_id) {
@@ -129,8 +124,8 @@ pub unsafe extern "C" fn handle() {
         Action::Mint => {
             CONTRACT.mint();
         }
-        Action::Royalty() => {
-            CONTRACT.PayRoyalty()
+        Action::Royalty(price) => {
+            CONTRACT.royalty(price); //update the state of the contract by updating the royalty amount
         }
         Action::Burn(amount) => {
             CONTRACT.burn(amount);
@@ -162,7 +157,7 @@ pub unsafe extern "C" fn init() {
     debug!("NFT {:?}", config);
     CONTRACT
         .token
-        .init(config.name, config.symbol, config.base_uri, config.price); // added price
+        .init(config.name, config.symbol, config.base_uri); 
     CONTRACT.owner = msg::source();
 }
 

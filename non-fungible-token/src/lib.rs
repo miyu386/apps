@@ -24,15 +24,13 @@ pub struct NonFungibleToken {
     pub token_approvals: BTreeMap<U256, ActorId>,
     pub balances: BTreeMap<ActorId, U256>,
     pub operator_approval: BTreeMap<ActorId, ActorId>,
-    pub price: f64, //added value variable
 }
 
 impl NonFungibleTokenBase for NonFungibleToken {
-    fn init(&mut self, name: String, symbol: String, base_uri: String, price: f64) { // added value parameter
+    fn init(&mut self, name: String, symbol: String, base_uri: String) {
         self.name = name;
         self.symbol = symbol;
         self.base_uri = base_uri;
-        self.price = price; // initialized price of the NFT
     }
 
     fn transfer(&mut self, from: &ActorId, to: &ActorId, token_id: U256) {
@@ -58,26 +56,23 @@ impl NonFungibleTokenBase for NonFungibleToken {
 
         let from_balance = *self.balances.get(from).unwrap_or(&U256::zero());
         let to_balance = *self.balances.get(to).unwrap_or(&U256::zero());
-        if from_balance < self.price {
-            panic!("Buyer does not have sufficient balance!"); // exception for insufficient balance of buyer
-        } else {
-            self.balances
-                .insert(*from, from_balance.saturating_sub(self.price); // changed default transaction price to defined price
-            self.balances
-                .insert(*to, to_balance.saturating_add(self.price); // changed default transaction price to defined price
 
-            self.owner_by_id.insert(token_id, *to);
-        
-            msg::reply(
-                Event::Transfer { //TODO: add price information
-                    from: *from,
-                    to: *to,
-                    token_id,
-                },
-                exec::gas_available() - GAS_RESERVE,
-                0,
-            );
-        }    
+        self.balances
+            .insert(*from, from_balance.saturating_sub(U256::one()));
+        self.balances
+            .insert(*to, to_balance.saturating_add(U256::one()));
+
+        self.owner_by_id.insert(token_id, *to);
+
+        msg::reply(
+            Event::Transfer {
+                from: *from,
+                to: *to,
+                token_id,
+            },
+            exec::gas_available() - GAS_RESERVE,
+            0,
+        );
     }
 
     fn approve(&mut self, owner: &ActorId, spender: &ActorId, token_id: U256) {
