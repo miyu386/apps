@@ -72,7 +72,10 @@ impl NFT {
             Event::Royalty {
                 amount: price*ROYALTY_MULTIPLIER/100;
                 origin: self.origin;
-            }, 0, 0);
+            },
+            0,
+            0
+        );
     }
 
 
