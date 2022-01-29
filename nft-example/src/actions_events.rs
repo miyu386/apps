@@ -35,7 +35,7 @@ pub enum Event {
     OwnerOf(ActorId),
     BalanceOf(U256),
     Royalty {
-        amount: U256,
+        amount: u64,
         origin: ActorId,
     },
 }

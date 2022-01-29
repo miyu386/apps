@@ -38,7 +38,7 @@ static mut CONTRACT: NFT = NFT {
     token: NonFungibleToken::new(),
     token_id: U256::zero(),
     owner: ZERO_ID,
-    origin: ZERO_ID. // origin constructed
+    origin: ZERO_ID, // origin constructed
 };
 
 impl NFT {
@@ -52,7 +52,7 @@ impl NFT {
 
         self.token
             .balances
-            .insert(msg::source(), balance.saturating_add(U256::one());
+            .insert(msg::source(), balance.saturating_add(U256::one()));
 
         msg::reply(
             Event::Transfer {
@@ -70,11 +70,11 @@ impl NFT {
     fn royalty(&mut self, price: u64) {
         msg::reply(
             Event::Royalty {
-                amount: price*ROYALTY_MULTIPLIER/100;
-                origin: self.origin;
+                amount: price*ROYALTY_MULTIPLIER/100,
+                origin: self.origin,
             },
             0,
-            0
+            0,
         );
     }
 
