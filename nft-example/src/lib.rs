@@ -32,10 +32,17 @@ pub struct NFT {
     pub owner: ActorId,
 }
 
+pub struct Royalty{
+    pub account: ActorId,//original owner
+    pub amount: U256,
+    pub percentage: 
+}
+
 static mut CONTRACT: NFT = NFT {
     token: NonFungibleToken::new(),
     token_id: U256::zero(),
     owner: ZERO_ID,
+    royalties: 
 };
 
 impl NFT {
@@ -60,6 +67,10 @@ impl NFT {
             0,
         );
         self.token_id = self.token_id.saturating_add(U256::one());
+    }
+
+    fn royalty(&mut self, account){
+
     }
 
     fn burn(&mut self, token_id: U256) {
@@ -92,7 +103,7 @@ impl NFT {
 }
 
 gstd::metadata! {
-    title: "NftExample",
+    title: "Royalty NFT Example",
         init:
             input: InitConfig,
         handle:
@@ -106,10 +117,12 @@ gstd::metadata! {
 #[no_mangle]
 pub unsafe extern "C" fn handle() {
     let action: Action = msg::load().expect("Could not load Action");
-    match action {
+    match action { //add royalty
         Action::Mint => {
             CONTRACT.mint();
         }
+
+        ACtion::Royalty() =>
         Action::Burn(amount) => {
             CONTRACT.burn(amount);
         }

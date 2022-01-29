@@ -42,5 +42,4 @@ pub trait NonFungibleTokenBase {
     /// If token does not exist, it sends the zero address
     /// Arguments:
     /// * `token_id`: the token ID
-    fn owner_of(&self, token_id: U256);
 }
