@@ -17,12 +17,14 @@ use non_fungible_token::NonFungibleToken;
 
 const GAS_RESERVE: u64 = 500_000_000;
 const ZERO_ID: ActorId = ActorId::new([0u8; 32]);
+const ROYALTY_MULTIPLIER: f64 = 0.05; // fixed royalty %? 
 
 #[derive(Debug, Decode, TypeInfo)]
 pub struct InitConfig {
     pub name: String,
     pub symbol: String,
     pub base_uri: String,
+    pub price: U256, // initconfig for the price parameter for NonFungiBleTokenBase constructor
 }
 
 #[derive(Debug)]
@@ -32,22 +34,21 @@ pub struct NFT {
     pub owner: ActorId,
 }
 
-pub struct Royalty{
-    pub account: ActorId,//original owner
-    pub amount: U256,
-    pub percentage: 
+pub struct Royalty {
+    pub account: ActorId, //original owner
+    pub amount: U256, // transanction amount multiplied by fixed percentage ROYALTY_MULTIPLIER
 }
 
 static mut CONTRACT: NFT = NFT {
     token: NonFungibleToken::new(),
     token_id: U256::zero(),
     owner: ZERO_ID,
-    royalties: 
+    royalties: ROYALTY_MULTIPLIER,
 };
 
 impl NFT {
     fn mint(&mut self) {
-        self.token.owner_by_id.insert(self.token_id, msg::source());
+        self.token.owner_by_id.insert(self.token_id, msg::source()); //add parameter denoting initial value
         let balance = *self
             .token
             .balances
@@ -69,8 +70,16 @@ impl NFT {
         self.token_id = self.token_id.saturating_add(U256::one());
     }
 
-    fn royalty(&mut self, account){
-
+    fn payRoyalty(&mut self, from: &ActorID, to: &ActorId, token_id: U256){
+        if !self.exists(token_id) {
+            panic!("NonFungibleToken: token does not exist");
+        }
+        if from == to {
+            panic!("NonFungibleToken: pay ro to current owner");
+        }
+        if to == &ZERO_ID {
+            panic!("NonFungibleToken: Transfer to zero address.");
+        }
     }
 
     fn burn(&mut self, token_id: U256) {
@@ -117,17 +126,19 @@ gstd::metadata! {
 #[no_mangle]
 pub unsafe extern "C" fn handle() {
     let action: Action = msg::load().expect("Could not load Action");
-    match action { //add royalty
+    match action {
         Action::Mint => {
             CONTRACT.mint();
         }
-
-        ACtion::Royalty() =>
+        Action::Royalty() => {
+            CONTRACT.PayRoyalty()
+        }
         Action::Burn(amount) => {
             CONTRACT.burn(amount);
         }
         Action::Transfer { to, token_id } => {
             CONTRACT.token.transfer(&msg::source(), &to, token_id);
+
         }
         Action::Approve { to, token_id } => {
             CONTRACT.token.approve(&msg::source(), &to, token_id);

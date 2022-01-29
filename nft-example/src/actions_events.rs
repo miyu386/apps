@@ -12,6 +12,7 @@ pub enum Action {
     ApproveForAll { to: ActorId, approved: bool },
     OwnerOf(U256),
     BalanceOf(ActorId),
+    PayRoyalty(to: ActorId, token_id: U256)
 }
 
 #[derive(Debug, Encode, Decode, TypeInfo)]
@@ -33,4 +34,5 @@ pub enum Event {
     },
     OwnerOf(ActorId),
     BalanceOf(U256),
+
 }

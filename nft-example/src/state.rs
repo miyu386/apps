@@ -9,7 +9,7 @@ pub enum State {
     TokenOwner(U256),
     IsTokenOwner { account: ActorId, token_id: U256 },
     Origin(U256),
-    ISOrigin { account: ActorId, token_id: U256}
+    IsOrigin { account: ActorId, token_id: U256}
     GetApproved(U256),
 }
 
@@ -19,6 +19,6 @@ pub enum StateReply {
     TokenOwner(ActorId),
     Origin(ActorId),
     IsTokenOwner(bool),
-    ISOrigin(bool),
+    IsOrigin(bool),
     GetApproved(ActorId),
 }
