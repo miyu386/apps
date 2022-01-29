@@ -7,6 +7,7 @@ pub trait NonFungibleTokenBase {
     /// * `name`: A descriptive name for a collection of NFTs in this contract
     /// * `symbol`: An abbreviated name for NFTs in this contract
     /// * `base_uri`: The URI of the NFT. This could be a website link, an API call, something on IPFS, some other unique identifier, etc
+    /// * `price`: The price of the NFT. 
     fn init(&mut self, name: String, symbol: String, base_uri: String);
 
     /// Transfer an NFT item from current owner to the new one

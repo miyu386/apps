@@ -24,7 +24,7 @@ pub struct InitConfig {
     pub name: String,
     pub symbol: String,
     pub base_uri: String,
-    pub price: U256, // initconfig for the price parameter for NonFungiBleTokenBase constructor
+    pub price: f64, // initconfig for the price parameter for NonFungiBleTokenBase constructor
 }
 
 #[derive(Debug)]
@@ -32,31 +32,29 @@ pub struct NFT {
     pub token: NonFungibleToken,
     pub token_id: U256,
     pub owner: ActorId,
-}
-
-pub struct Royalty {
-    pub account: ActorId, //original owner
-    pub amount: U256, // transanction amount multiplied by fixed percentage ROYALTY_MULTIPLIER
+    pub origin: ActorId, //original mintor of the token (receives royalty)
 }
 
 static mut CONTRACT: NFT = NFT {
     token: NonFungibleToken::new(),
     token_id: U256::zero(),
     owner: ZERO_ID,
-    royalties: ROYALTY_MULTIPLIER,
+    origin: ZERO_ID. // origin constructed
 };
 
 impl NFT {
     fn mint(&mut self) {
-        self.token.owner_by_id.insert(self.token_id, msg::source()); //add parameter denoting initial value
+        self.token.owner_by_id.insert(self.token_id, msg::source());
         let balance = *self
             .token
             .balances
             .get(&msg::source())
             .unwrap_or(&U256::zero());
+
         self.token
             .balances
             .insert(msg::source(), balance.saturating_add(U256::one()));
+            .
 
         msg::reply(
             Event::Transfer {
@@ -68,9 +66,10 @@ impl NFT {
             0,
         );
         self.token_id = self.token_id.saturating_add(U256::one());
+        self.origin = msg::source(); //creator id is saved to origin variable
     }
 
-    fn payRoyalty(&mut self, from: &ActorID, to: &ActorId, token_id: U256){
+    fn payRoyalty(&mut self, from: &ActorID, to: &ActorId, token_id: U256, price: f64){
         if !self.exists(token_id) {
             panic!("NonFungibleToken: token does not exist");
         }
@@ -163,7 +162,7 @@ pub unsafe extern "C" fn init() {
     debug!("NFT {:?}", config);
     CONTRACT
         .token
-        .init(config.name, config.symbol, config.base_uri);
+        .init(config.name, config.symbol, config.base_uri, config.price); // added price
     CONTRACT.owner = msg::source();
 }
 
