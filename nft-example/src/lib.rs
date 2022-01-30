@@ -5,6 +5,7 @@ use codec::{Decode, Encode};
 use gstd::{debug, exec, msg, prelude::*, ActorId};
 use primitive_types::U256;
 use scale_info::TypeInfo;
+use nft_example_io::*;
 
 pub mod state;
 pub use state::{State, StateReply};
