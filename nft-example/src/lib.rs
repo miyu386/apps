@@ -110,7 +110,7 @@ impl NFT {
         }
         msg::reply(
             Event::AssignRoyalty {
-                token_id: self.token_id,
+                token_id,
                 recipient: *self.origin_by_id.get(&token_id).unwrap_or(&ZERO_ID),
             },
             0,
