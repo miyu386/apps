@@ -17,7 +17,7 @@ use non_fungible_token::NonFungibleToken;
 
 const GAS_RESERVE: u64 = 500_000_000;
 const ZERO_ID: ActorId = ActorId::new([0u8; 32]);
-const ROYALTY_MULTIPLIER: u64 = 5; // fixed royalty %? 
+// const ROYALTY_MULTIPLIER: u64 = 5; // fixed royalty %? 
 
 #[derive(Debug, Decode, TypeInfo)]
 pub struct InitConfig {
@@ -31,14 +31,16 @@ pub struct NFT {
     pub token: NonFungibleToken,
     pub token_id: U256,
     pub owner: ActorId,
-    pub origin: ActorId, //original mintor of the token (receives royalty)
+    pub origin_by_id: BTreeMap<U256, ActorId>,
+    pub royalty_rate: BTreeMap<U256, u64>, //token id:rate 
 }
 
 static mut CONTRACT: NFT = NFT {
     token: NonFungibleToken::new(),
     token_id: U256::zero(),
     owner: ZERO_ID,
-    origin: ZERO_ID, // origin constructed
+    origin_by_id: BTreeMap::new(),
+    royalty_rate: BTreeMap::new(),
 };
 
 impl NFT {
@@ -64,20 +66,58 @@ impl NFT {
             0,
         );
         self.token_id = self.token_id.saturating_add(U256::one());
-        self.origin = msg::source();
+        self.origin_by_id.insert(self.token_id, msg::source());
     }
 
-    fn royalty(&mut self, price: u64) {
+    fn royalty(&mut self, token_id: U256, price: u64) {
+        if !self.token.exists(token_id) {
+            panic!("NonFungibleToken: Token does not exist");
+        }
+        let multiplier = *self.royalty_rate.get(&token_id).unwrap_or(&5);
         msg::reply(
             Event::Royalty {
-                amount: price*ROYALTY_MULTIPLIER/100,
-                origin: self.origin,
+                amount: price*multiplier/100,
+                origin: *self.origin_by_id.get(&token_id).unwrap_or(&ZERO_ID),
             },
             0,
             0,
         );
+
+        // if self.royalty_rate.contains_key(&token_id) {
+        //     let multiplier = *self.royalty_rate.get(&token_id).unwrap_or(&0);
+        //     msg::reply(
+        //         Event::Royalty {
+        //             amount: price*multiplier/100,
+        //             origin: *self.origin_by_id.get(&token_id).unwrap_or(&ZERO_ID),
+        //         },
+        //         0,
+        //         0,
+        //     );
+        // } else {
+        //     msg::reply(
+        //         Event::Royalty {
+        //             amount: price*ROYALTY_MULTIPLIER/100,
+        //             origin: *self.origin_by_id.get(&token_id).unwrap_or(&ZERO_ID),
+        //         },
+        //         0,
+        //         0,
+        //     );
     }
 
+    fn assignroyalty(&mut self, token_id: U256, rate: u64) {
+        if !self.token.exists(token_id) {
+            panic!("NonFungibleToken: Token does not exist");
+        }
+        msg::reply(
+            Event::AssignRoyalty {
+                token_id: self.token_id,
+                recipient: *self.origin_by_id.get(&token_id).unwrap_or(&ZERO_ID),
+            },
+            0,
+            0,
+        );
+        self.royalty_rate.insert(self.token_id, rate);
+    }
 
     fn burn(&mut self, token_id: U256) {
         if !self.token.exists(token_id) {
@@ -127,8 +167,8 @@ pub unsafe extern "C" fn handle() {
         Action::Mint => {
             CONTRACT.mint();
         }
-        Action::Royalty(price) => {
-            CONTRACT.royalty(price); //update the state of the contract by updating the royalty amount
+        Action::Royalty { token_id, price } => {
+            CONTRACT.royalty(token_id, price); //update the state of the contract by updating the royalty amount
         }
         Action::Burn(amount) => {
             CONTRACT.burn(amount);
@@ -150,6 +190,9 @@ pub unsafe extern "C" fn handle() {
         }
         Action::BalanceOf(input) => {
             CONTRACT.token.balance_of(&input);
+        }
+        Action::AssignRoyalty { token_id, rate } => {
+            CONTRACT.assignroyalty(token_id, rate); //assigns a royalty rate to a token
         }
     }
 }
