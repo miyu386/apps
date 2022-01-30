@@ -29,7 +29,7 @@ fn init_with_mint<'a>(sys: &'a System) {
         Event::Transfer {
             from: 0.into(),
             to: USERS[0].into(),
-            token_id: 0.into(),
+            token_id: 0_i32.into(),
         }
         .encode()
     )));
@@ -62,9 +62,9 @@ fn royalty_failures() {
     let sys = System::new();
     init_with_mint(&sys);
     let nft = sys.get_program(1);
-    let res = nft.send(USERS[0], Action::Royalty {1.into(), 1.into()});
+    let res = nft.send(USERS[0], Action::Royalty {token_id: 1.into(), price: 0});
     assert!(res.main_failed());
-    let res = nft.send(USERS[1], Action::Royalty {0.into(), 0.into()});
+    let res = nft.send(USERS[1], Action::Royalty {token_id: 0.into(), price: 0});
     assert!(res.main_failed());
 }
 
@@ -72,11 +72,11 @@ fn assignroyalty() {
     let sys = System::new();
     init_with_mint(&sys);
     let nft = sys.get_program(1);
-    let res = nft.send(USERS[0], Action::AssignRoyalty {0.into(), 0.into()});
+    let res = nft.send(USERS[0], Action::AssignRoyalty {token_id: 0.into(), rate: 0});
     assert!(res.contains(&(
         USERS[0],
         Event::AssignRoyalty {
-            token_id: 0.into(),
+            token_id: 0_i32.into(),
             recipient: USERS[0].into(),
         }
         .encode()
@@ -88,13 +88,13 @@ fn burn() {
     let sys = System::new();
     init_with_mint(&sys);
     let nft = sys.get_program(1);
-    let res = nft.send(USERS[0], Action::Burn(0.into()));
+    let res = nft.send(USERS[0], Action::Burn(0_i32.into()));
     assert!(res.contains(&(
         USERS[0],
         Event::Transfer {
             from: USERS[0].into(),
             to: 0.into(),
-            token_id: 0.into(),
+            token_id: 0_i32.into(),
         }
         .encode()
     )));
@@ -106,11 +106,11 @@ fn burn_failures() {
     init_with_mint(&sys);
     let nft = sys.get_program(1);
     // must fail since the token doesn't exist
-    let res = nft.send(USERS[0], Action::Burn(1.into()));
+    let res = nft.send(USERS[0], Action::Burn(1_i32.into()));
     assert!(res.main_failed());
 
     // must fail since the caller isn't the token owner
-    let res = nft.send(USERS[1], Action::Burn(0.into()));
+    let res = nft.send(USERS[1], Action::Burn(0_i32.into()));
     assert!(res.main_failed());
 }
 
@@ -119,11 +119,11 @@ fn owner_of() {
     let sys = System::new();
     init_with_mint(&sys);
     let nft = sys.get_program(1);
-    let res = nft.send(USERS[0], Action::OwnerOf(0.into()));
+    let res = nft.send(USERS[0], Action::OwnerOf(0_i32.into()));
     assert!(res.contains(&(USERS[0], Event::OwnerOf(USERS[0].into()).encode())));
 
     // must return zero address since the token doesn't exist
-    let res = nft.send(USERS[0], Action::OwnerOf(100.into()));
+    let res = nft.send(USERS[0], Action::OwnerOf(100_i32.into()));
     assert!(res.contains(&(USERS[0], Event::OwnerOf(0.into()).encode())));
 }
 
@@ -138,7 +138,7 @@ fn balance_of() {
     assert!(!res.main_failed());
 
     let res = nft.send(USERS[0], Action::BalanceOf(USERS[0].into()));
-    assert!(res.contains(&(USERS[0], Event::BalanceOf(3.into()).encode())));
+    assert!(res.contains(&(USERS[0], Event::BalanceOf(3_i32.into()).encode())));
 }
 
 #[test]
@@ -150,7 +150,7 @@ fn transfer() {
         USERS[0],
         Action::Transfer {
             to: USERS[1].into(),
-            token_id: 0.into(),
+            token_id: 0_i32.into(),
         },
     );
 
@@ -159,19 +159,19 @@ fn transfer() {
         Event::Transfer {
             from: USERS[0].into(),
             to: USERS[1].into(),
-            token_id: 0.into(),
+            token_id: 0_i32.into(),
         }
         .encode()
     )));
 
     // check that the balance of `USER[0]` is zero, the balance of `USER[1]` is now 1
     let res = nft.send(USERS[0], Action::BalanceOf(USERS[0].into()));
-    assert!(res.contains(&(USERS[0], Event::BalanceOf(0.into()).encode())));
+    assert!(res.contains(&(USERS[0], Event::BalanceOf(0_i32.into()).encode())));
     let res = nft.send(USERS[0], Action::BalanceOf(USERS[1].into()));
-    assert!(res.contains(&(USERS[0], Event::BalanceOf(1.into()).encode())));
+    assert!(res.contains(&(USERS[0], Event::BalanceOf(1_i32.into()).encode())));
 
     // check that `USER[1]` is now the owner of the token with `0` id
-    let res = nft.send(USERS[0], Action::OwnerOf(0.into()));
+    let res = nft.send(USERS[0], Action::OwnerOf(0_i32.into()));
     assert!(res.contains(&(USERS[0], Event::OwnerOf(USERS[1].into()).encode())));
 }
 
@@ -185,7 +185,7 @@ fn transfer_failures() {
         USERS[0],
         Action::Transfer {
             to: USERS[1].into(),
-            token_id: 100.into(),
+            token_id: 100_i32.into(),
         },
     );
     assert!(res.main_failed());
@@ -195,7 +195,7 @@ fn transfer_failures() {
         USERS[2],
         Action::Transfer {
             to: USERS[1].into(),
-            token_id: 0.into(),
+            token_id: 0_i32.into(),
         },
     );
     assert!(res.main_failed());
@@ -205,7 +205,7 @@ fn transfer_failures() {
         USERS[0],
         Action::Transfer {
             to: 0.into(),
-            token_id: 0.into(),
+            token_id: 0_i32.into(),
         },
     );
     assert!(res.main_failed());
@@ -221,7 +221,7 @@ fn approve_and_transfer() {
         USERS[0],
         Action::Approve {
             to: USERS[1].into(),
-            token_id: 0.into(),
+            token_id: 0_i32.into(),
         },
     );
     assert!(res.contains(&(
@@ -229,7 +229,7 @@ fn approve_and_transfer() {
         Event::Approval {
             owner: USERS[0].into(),
             spender: USERS[1].into(),
-            token_id: 0.into(),
+            token_id: 0_i32.into(),
         }
         .encode()
     )));
@@ -238,7 +238,7 @@ fn approve_and_transfer() {
         USERS[1],
         Action::Transfer {
             to: USERS[2].into(),
-            token_id: 0.into(),
+            token_id: 0_i32.into(),
         },
     );
 
@@ -247,7 +247,7 @@ fn approve_and_transfer() {
         Event::Transfer {
             from: USERS[1].into(),
             to: USERS[2].into(),
-            token_id: 0.into(),
+            token_id: 0_i32.into(),
         }
         .encode()
     )));
@@ -285,7 +285,7 @@ fn approve_for_all() {
         USERS[1],
         Action::Transfer {
             to: USERS[2].into(),
-            token_id: 0.into(),
+            token_id: 0_i32.into(),
         },
     );
     assert!(!res.main_failed());
@@ -293,7 +293,7 @@ fn approve_for_all() {
         USERS[1],
         Action::Transfer {
             to: USERS[2].into(),
-            token_id: 1.into(),
+            token_id: 1_i32.into(),
         },
     );
     assert!(!res.main_failed());
@@ -320,7 +320,7 @@ fn approve_for_all() {
         USERS[1],
         Action::Transfer {
             to: USERS[2].into(),
-            token_id: 2.into(),
+            token_id: 2_i32.into(),
         },
     );
     assert!(res.main_failed());

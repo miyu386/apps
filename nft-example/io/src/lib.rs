@@ -1,9 +1,12 @@
+#![no_std]
+
 use codec::{Decode, Encode};
 use gstd::{prelude::*, ActorId};
 use primitive_types::U256;
 use scale_info::TypeInfo;
+use nft_example_io::{Action, Event};
 
-#[derive(Debug, Decode, TypeInfo)]
+#[derive(Encode, Debug, Decode, TypeInfo)]
 pub enum Action {
     Mint,
     Burn(U256),
